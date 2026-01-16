@@ -2,7 +2,7 @@ name: ☕️ 上班晨间提醒（单休 · 晨光版）
 
 on:
   schedule:
-    - cron: '40 1 * * 1-6'   # UTC 1:40 = 北京时间 9:40，周一至周六
+    - cron: '20 1 * * 1-6'   # UTC 1:40 = 北京时间 9:40，周一至周六
   workflow_dispatch:
 
 jobs:
