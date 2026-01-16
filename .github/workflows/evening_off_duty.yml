@@ -9,71 +9,8 @@ jobs:
   off-duty:
     runs-on: ubuntu-latest
     steps:
-      - name: 🌟 发送下班提醒（安全版）
+      - name: 🌟 发送下班提醒
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          # 获取日期和星期
-          DATE_STR=$(date '+%m月%d日')
-          WEEKDAY=$(date '+%u')
-          [ "$WEEKDAY" = "7" ] && exit 0  # 周日不提醒
-
-          case $WEEKDAY in
-            1) CN_DAY="周一" ;;
-            2) CN_DAY="周二" ;;
-            3) CN_DAY="周三" ;;
-            4) CN_DAY="周四" ;;
-            5) CN_DAY="周五" ;;
-            6) CN_DAY="周六" ;;
-          esac
-
-          # 获取名言（带容错）
-          quote="今天也要好好休息呀～"
-          author="暖心小助手"
-          if command -v curl >/dev/null && command -v jq >/dev/null; then
-            resp=$(curl -s --max-time 8 "https://api.vvhan.com/api/ian" || echo '{}')
-            q=$(echo "$resp" | jq -r '.content // empty' 2>/dev/null)
-            a=$(echo "$resp" | jq -r '.author // empty' 2>/dev/null)
-            [ -n "$q" ] && [ "$q" != "null" ] && quote="$q"
-            [ -n "$a" ] && [ "$a" != "null" ] && author="$a"
-          fi
-
-          # 构建 Markdown 内容（真实换行）
-          if [ "$CN_DAY" = "周六" ]; then
-            bonus="🌈 <font color=\"warning\">✨ 周六加班辛苦啦！</font>
-> 💪 你的努力，值得双倍奶茶！
-> 
-> 💖 周日记得充电～"
-          else
-            bonus=""
-          fi
-
-          content="🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>
-
-📌 **今日**：$DATE_STR（$CN_DAY）
-📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>
-
-💬 <font color=\"comment\">“$quote”</font>
-> —— $author
-
-$bonus
-
-🎀 <font color=\"info\">快去打卡吧！</font>
-
-[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)
-
-@all"
-
-          # === 关键：用 jq 安全生成 JSON ===
-          json_payload=$(jq -n \
-            --arg msgtype "markdown" \
-            --arg content "$content" \
-            '{"msgtype": $msgtype, "markdown": {"content": $content}}')
-
-          # 发送
-          curl -s -X POST \
-            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
-            -H 'Content-Type: application/json' \
-            -d "$json_payload" >/dev/null || true
-
-          exit 0
+          DATE_STR=$(date '+%m月%d日'); WEEKDAY=$(date '+%u'); [ "$WEEKDAY" = "7" ] && exit 0; case $WEEKDAY in 1) CN_DAY="周一";; 2) CN_DAY="周二";; 3) CN_DAY="周三";; 4) CN_DAY="周四";; 5) CN_DAY="周五";; 6) CN_DAY="周六";; esac; quote="今天也要好好休息呀～"; author="暖心小助手"; if command -v curl >/dev/null && command -v jq >/dev/null; then resp=$(curl -s --max-time 8 "https://api.vvhan.com/api/ian" || echo '{}'); q=$(echo "$resp" | jq -r '.content // empty' 2>/dev/null); a=$(echo "$resp" | jq -r '.author // empty' 2>/dev/null); [ -n "$q" ] && [ "$q" != "null" ] && quote="$q"; [ -n "$a" ] && [ "$a" != "null" ] && author="$a"; fi; bonus=""; [ "$CN_DAY" = "周六" ] && bonus="🌈 <font color=\"warning\">✨ 周六加班辛苦啦！</font>\n> 💪 你的努力，值得双倍奶茶！\n> \n> 💖 周日记得充电～"; content="🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\n\n📌 **今日**：$DATE_STR（$CN_DAY）\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\n\n💬 <font color=\"comment\">“$quote”</font>\n> —— $author\n\n$bonus\n\n🎀 <font color=\"info\">快去打卡吧！</font>\n\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\n\n@all"; json_payload=$(jq -n --arg msgtype "markdown" --arg content "$content" '{"msgtype": $msgtype, "markdown": {"content": $content}}'); curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" -H 'Content-Type: application/json' -d "$json_payload" >/dev/null || true; exit 0
