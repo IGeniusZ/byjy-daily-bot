@@ -2,66 +2,43 @@ name: 🌙 下班打卡提醒（单休版）
 
 on:
   schedule:
-    - cron: '0 11 * * *'   # UTC 11:00 = 北京时间 19:00
-  workflow_dispatch:        # ← 这行必须存在，且不能缩进！
+    - cron: '0 11 * * *'
+  workflow_dispatch:
 
 jobs:
   off-duty:
     runs-on: ubuntu-latest
     steps:
-      - name: 🌟 发送花里胡哨下班打卡提醒
+      - name: Send WeCom Reminder
         env:
-          WECHAT_KEY:  $ {{ secrets.WECHAT_BOT_KEY }}
+          WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          # === 获取中文星期 ===
-          WEEKDAY= $ (date '+%u')
-          case  $ WEEKDAY in
-            1) CN_DAY="周一" ;;
-            2) CN_DAY="周二" ;;
-            3) CN_DAY="周三" ;;
-            4) CN_DAY="周四" ;;
-            5) CN_DAY="周五" ;;
-            6) CN_DAY="周六" ;;
-            7) CN_DAY="周日" ;;
-            *) CN_DAY="未知" ;;
-          esac
-          DATE_STR= $ (date '+%m月%d日')
+          # 最简逻辑：避免一切崩溃可能
+          DATE_STR=$(date '+%m月%d日')
+          WEEKDAY=$(date '+%u')
+          CN_DAY="周日"
+          [ "$WEEKDAY" = "1" ] && CN_DAY="周一"
+          [ "$WEEKDAY" = "2" ] && CN_DAY="周二"
+          [ "$WEEKDAY" = "3" ] && CN_DAY="周三"
+          [ "$WEEKDAY" = "4" ] && CN_DAY="周四"
+          [ "$WEEKDAY" = "5" ] && CN_DAY="周五"
+          [ "$WEEKDAY" = "6" ] && CN_DAY="周六"
 
-          # === 安全获取名言（不依赖 jq）===
-          quote="今天也要好好休息呀～"
-          author="暖心小助手"
-          quote_data= $ (curl -s --max-time 8 "https://api.vvhan.com/api/ian" || echo '{}')
-          temp_quote= $ (printf '%s' " $ quote_data" | sed -n 's/.*"content"[[:space:]]*:[[:space:]]*"  $ [^"]* $  ".*/\1/p')
-          temp_author= $ (printf '%s' " $ quote_data" | sed -n 's/.*"author"[[:space:]]*:[[:space:]]*"  $ [^"]* $  ".*/\1/p')
-          [ -n " $ temp_quote" ] && quote=" $ temp_quote"
-          [ -n " $ temp_author" ] && author=" $ temp_author"
-
-          # === 转义特殊字符 ===
-          quote_safe= $ (printf '%s' " $ quote" | sed 's/"/\\"/g; s/\\/\\\\/g')
-          author_safe= $ (printf '%s' " $ author" | sed 's/"/\\"/g; s/\\/\\\\/g')
-
-          # === 周六彩蛋 ===
-          if [ " $ CN_DAY" = "周六" ]; then
-            SATURDAY_BONUS="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\n> 你今天的努力，值得双倍奶茶奖励！\n> \n> 💖 别忘了：周日是你的充电日，好好休息～"
-          else
-            SATURDAY_BONUS=""
+          SATURDAY_BONUS=""
+          if [ "$CN_DAY" = "周六" ]; then
+            SATURDAY_BONUS="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\\n> 双倍奶茶奖励！"
           fi
 
-          # === 构建安全 JSON ===
-          JSON_BODY= $ (cat <<EOF
-{
-  "msgtype": "markdown",
-  "markdown": {
-    "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\\n\\n📌 **今日**： $ DATE_STR（ $ CN_DAY）\\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\\n\\n💬 <font color=\"comment\">“ $ quote_safe”</font>\\n> ——  $ author_safe\\n\\n $ SATURDAY_BONUS\\n\\n🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>\\n\\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\\n\\n@all"
-  }
-}
-EOF
-          )
-
-          # === 发送消息（容错处理）===
+          # 构建 JSON（硬编码内容，确保安全）
           curl -s -X POST \
-            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key= $ WECHAT_KEY" \
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
-            -d " $ JSON_BODY" >/dev/null || true
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\\n\\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\\n\\n💬 <font color=\"comment\">“今天也要好好休息呀～”</font>\\n> —— 暖心小助手\\n\\n'$SATURDAY_BONUS'\\n\\n🎀 <font color=\"info\">快去打卡吧！</font>\\n\\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\\n\\n@all"
+              }
+            }' >/dev/null || true
 
+          echo "✅ 工作流执行完毕（无论消息是否发送成功）"
           exit 0
