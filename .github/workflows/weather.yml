@@ -1,37 +1,38 @@
-name: Daily Weather
+name: 🌤️ Morning Weather & 10:00 Check-in Reminder
 
 on:
   schedule:
-    - cron: '30 0 * * *'  # 北京时间 8:30
+    - cron: '40 1 * * *'   # UTC 1:40 = 北京时间 9:40
   workflow_dispatch:
 
 jobs:
-  weather:
+  weather-checkin:
     runs-on: ubuntu-latest
     steps:
-      - name: Get Weather and Send
+      - name: 🌦️ Get Weather and Send Beautiful Reminder
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
-          QWEATHER_KEY: ${{ secrets.QWEATHER_KEY }}  # 在 Secrets 中添加
-          LOCATION: "101280601"  # 深圳的 location id，可查官网
+          QWEATHER_KEY: ${{ secrets.QWEATHER_KEY }}
+          LOCATION: "101280601"  # 默认深圳，可替换为其他城市ID
         run: |
-          # 调用和风天气 API
+          # === 调用和风天气 API ===
           response=$(curl -s "https://devapi.qweather.com/v7/weather/now?location=$LOCATION&key=$QWEATHER_KEY")
-          temp=$(echo "$response" | jq -r '.now.temp')
-          text=$(echo "$response" | jq -r '.now.text')
-          feels_like=$(echo "$response" | jq -r '.now.feelsLike')
-          
+          temp=$(echo "$response" | jq -r '.now.temp // empty')
+          text=$(echo "$response" | jq -r '.now.text // empty')
+          feels_like=$(echo "$response" | jq -r '.now.feelsLike // empty')
+
           if [ -z "$temp" ] || [ "$temp" = "null" ]; then
-            msg="🌤️ 今日天气获取失败，请检查 API Key"
+            weather_block="🌤️ <font color=\"comment\">天气信息暂不可用</font>"
           else
-            msg="🌡️ 当前温度：${temp}°C（体感 ${feels_like}°C）\n☁️ 天气：$text"
+            weather_block="🌡️ **当前温度**：${temp}°C（体感 ${feels_like}°C）\n☁️ **天气状况**：$text"
           fi
 
+          # === 构造超好看 Markdown 消息 ===
           curl "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
-            -d "{
-              \"msgtype\": \"markdown\",
-              \"markdown\": {
-                \"content\": \"<font color=\"info\">🌦️ 深圳今日天气</font>\n\n$msg\n\n出门记得带伞 or 涂防晒！\"
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "🌤️ <font color=\"info\">────── 🌞 早安提醒 ──────</font>\n\n📍 **城市**：深圳\n'$weather_block'\n\n⏰ <font color=\"warning\">10:00 前请完成打卡！</font>\n> 别让考勤系统等你太久～\n\n✨ 祝你今天高效、少会、无 bug！\n\n@all"
               }
-            }"
+            }'
