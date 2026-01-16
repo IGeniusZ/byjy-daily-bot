@@ -3,7 +3,7 @@ name: 🌙 下班打卡提醒（单休版）
 on:
   schedule:
     - cron: '0 11 * * *'   # UTC 11:00 = 北京时间 19:00
-  workflow_dispatch:        # 支持手动测试
+  workflow_dispatch:        # ← 这行必须存在，且不能缩进！
 
 jobs:
   off-duty:
@@ -27,33 +27,27 @@ jobs:
           esac
           DATE_STR= $ (date '+%m月%d日')
 
-          # === 安全获取名言（不依赖 jq！）===
+          # === 安全获取名言（不依赖 jq）===
           quote="今天也要好好休息呀～"
           author="暖心小助手"
-          
-          # 尝试获取 API 数据（即使失败也不中断）
           quote_data= $ (curl -s --max-time 8 "https://api.vvhan.com/api/ian" || echo '{}')
-          
-          # 手动提取 content 和 author（避免 jq）
           temp_quote= $ (printf '%s' " $ quote_data" | sed -n 's/.*"content"[[:space:]]*:[[:space:]]*"  $ [^"]* $  ".*/\1/p')
           temp_author= $ (printf '%s' " $ quote_data" | sed -n 's/.*"author"[[:space:]]*:[[:space:]]*"  $ [^"]* $  ".*/\1/p')
-          
-          # 非空则使用
           [ -n " $ temp_quote" ] && quote=" $ temp_quote"
           [ -n " $ temp_author" ] && author=" $ temp_author"
 
-          # === 转义双引号和反斜杠（关键！）===
+          # === 转义特殊字符 ===
           quote_safe= $ (printf '%s' " $ quote" | sed 's/"/\\"/g; s/\\/\\\\/g')
           author_safe= $ (printf '%s' " $ author" | sed 's/"/\\"/g; s/\\/\\\\/g')
 
-          # === 周六专属彩蛋 ===
+          # === 周六彩蛋 ===
           if [ " $ CN_DAY" = "周六" ]; then
             SATURDAY_BONUS="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\n> 你今天的努力，值得双倍奶茶奖励！\n> \n> 💖 别忘了：周日是你的充电日，好好休息～"
           else
             SATURDAY_BONUS=""
           fi
 
-          # === 构建安全的 JSON（使用 heredoc + 正确转义）===
+          # === 构建安全 JSON ===
           JSON_BODY= $ (cat <<EOF
 {
   "msgtype": "markdown",
@@ -64,11 +58,10 @@ jobs:
 EOF
           )
 
-          # === 发送消息（强制忽略所有错误）===
+          # === 发送消息（容错处理）===
           curl -s -X POST \
             "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key= $ WECHAT_KEY" \
             -H 'Content-Type: application/json' \
             -d " $ JSON_BODY" >/dev/null || true
 
-          # === 强制返回成功（无论结果如何）===
           exit 0
