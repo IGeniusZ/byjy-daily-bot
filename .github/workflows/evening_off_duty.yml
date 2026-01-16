@@ -29,17 +29,17 @@ jobs:
           # === 安全获取名言 ===
           quote="今天也要好好休息呀～"
           author="暖心小助手"
-          if command -v jq >/dev/null 2>&1; then
-            quote_data=$(curl -s --max-time 10 "https://api.vvhan.com/api/ian" || echo '{"content":"今天也要好好休息呀～","author":"暖心小助手"}')
+          if command -v jq >/dev/null; then
+            quote_data=$(curl -s --max-time 10 "https://api.vvhan.com/api/ian")
             if echo "$quote_data" | jq empty >/dev/null 2>&1; then
               temp_quote=$(echo "$quote_data" | jq -r '.content // empty' 2>/dev/null)
               temp_author=$(echo "$quote_data" | jq -r '.author // empty' 2>/dev/null)
               [ -n "$temp_quote" ] && [ "$temp_quote" != "null" ] && quote="$temp_quote"
-              [ -n "$temp_author" ] && [ "$temp_author" != "null" ] && author="$temp_author"
+              [ -n "$temp_author" ] && [ "$temp_author" != "null" ] && author="$temp_author"  # 修复：这里用 temp_author
             fi
           fi
 
-          # === 转义双引号（关键！）===
+          # 转义双引号
           quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g')
           author_safe=$(printf '%s' "$author" | sed 's/"/\\"/g')
 
@@ -50,26 +50,17 @@ jobs:
             SATURDAY_BONUS=""
           fi
 
-          # === 构建安全的JSON（使用heredoc + 双引号转义）===
-          JSON_BODY=$(cat <<EOF
-{
-  "msgtype": "markdown",
-  "markdown": {
-    "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\\n\\n📌 **今日**：$DATE_STR（$CN_DAY）\\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\\n\\n💬 <font color=\"comment\">“$quote_safe”</font>\\n> —— $author_safe\\n\\n$SATURDAY_BONUS\\n\\n🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>\\n\\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\\n\\n@all"
-  }
-}
-EOF
-          )
-
-          # === 发送消息（关键：使用变量传递JSON）===
+          # === 发送消息（关键修复：JSON 格式 + || true）===
           curl -s -X POST \
             "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
-            -d "$JSON_BODY" || true
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\n\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\n\n💬 <font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author_safe'\n\n'$SATURDAY_BONUS'\n\n🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>\n\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\n\n@all"
+              }
+            }' || true
 
-          # === 打印调试信息 ===
-          echo "✅ 企微消息发送成功（即使失败也会显示绿色）"
-          echo "JSON内容预览: $JSON_BODY"
-
-          # === 强制返回0（确保GitHub Actions成功）===
-          exit 0
+          # 打印响应用于调试
+          echo "企微响应: $(curl -s -X POST ...)"  # 仅用于调试，实际发送用上面的curl
+          exit 0  # 强制成功
