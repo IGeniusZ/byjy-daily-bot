@@ -1,8 +1,8 @@
-name: 🌙 下班打卡提醒（单休版）
+name: 🌙 下班打卡提醒（单休版 · 修复换行+链接）
 
 on:
   schedule:
-    - cron: '0 11 * * *'
+    - cron: '0 11 * * *'   # UTC 11:00 = 北京时间 19:00
   workflow_dispatch:
 
 jobs:
@@ -13,4 +13,40 @@ jobs:
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          DATE_STR=$(date '+%m月%d日'); WEEKDAY=$(date '+%u'); [ "$WEEKDAY" = "7" ] && exit 0; case $WEEKDAY in 1) CN_DAY="周一";; 2) CN_DAY="周二";; 3) CN_DAY="周三";; 4) CN_DAY="周四";; 5) CN_DAY="周五";; 6) CN_DAY="周六";; esac; quote="今天也要好好休息呀～"; author="暖心小助手"; if command -v curl >/dev/null && command -v jq >/dev/null; then resp=$(curl -s --max-time 8 "https://api.vvhan.com/api/ian" || echo '{}'); q=$(echo "$resp" | jq -r '.content // empty' 2>/dev/null); a=$(echo "$resp" | jq -r '.author // empty' 2>/dev/null); [ -n "$q" ] && [ "$q" != "null" ] && quote="$q"; [ -n "$a" ] && [ "$a" != "null" ] && author="$a"; fi; bonus=""; [ "$CN_DAY" = "周六" ] && bonus="🌈 <font color=\"warning\">✨ 周六加班辛苦啦！</font>\n> 💪 你的努力，值得双倍奶茶！\n> \n> 💖 周日记得充电～"; content="🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\n\n📌 **今日**：$DATE_STR（$CN_DAY）\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\n\n💬 <font color=\"comment\">“$quote”</font>\n> —— $author\n\n$bonus\n\n🎀 <font color=\"info\">快去打卡吧！</font>\n\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\n\n@all"; json_payload=$(jq -n --arg msgtype "markdown" --arg content "$content" '{"msgtype": $msgtype, "markdown": {"content": $content}}'); curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" -H 'Content-Type: application/json' -d "$json_payload" >/dev/null || true; exit 0
+          # 获取日期
+          DATE_STR=$(date '+%m月%d日')
+          WEEKDAY=$(date '+%u')
+          [ "$WEEKDAY" = "7" ] && exit 0  # 周日不发
+
+          case $WEEKDAY in
+            1) CN_DAY="周一" ;;
+            2) CN_DAY="周二" ;;
+            3) CN_DAY="周三" ;;
+            4) CN_DAY="周四" ;;
+            5) CN_DAY="周五" ;;
+            6) CN_DAY="周六" ;;
+          esac
+
+          # 名言（简化，避免复杂转义）
+          quote="今天也要好好休息呀～"
+          author="暖心小助手"
+
+          # 周六彩蛋（使用 \\n 表示换行）
+          if [ "$CN_DAY" = "周六" ]; then
+            BONUS="🌈 <font color=\"warning\">✨ 周六加班辛苦啦！</font>\\n> 💪 你的努力，值得双倍奶茶！\\n> \\n> 💖 周日记得充电～"
+          else
+            BONUS=""
+          fi
+
+          # === 关键：所有换行写成 \\n，整个 JSON 用单引号包裹 ===
+          curl -s -X POST \
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\\n\\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\\n\\n💬 <font color=\"comment\">“'$quote'”</font>\\n> —— '$author'\\n\\n'$BONUS'\\n\\n🎀 <font color=\"info\">快去打卡吧！</font>\\n\\n> 🔗 打卡地址：https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k\\n\\n@all"
+              }
+            }' >/dev/null || true
+
+          exit 0
