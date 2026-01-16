@@ -35,7 +35,7 @@ jobs:
               temp_quote=$(echo "$quote_data" | jq -r '.content // empty' 2>/dev/null)
               temp_author=$(echo "$quote_data" | jq -r '.author // empty' 2>/dev/null)
               [ -n "$temp_quote" ] && [ "$temp_quote" != "null" ] && quote="$temp_quote"
-              [ -n "$temp_author" ] && [ "$temp_author" != "null" ] && author="$temp_author"
+              [ -n "$temp_author" ] && [ "$temp_author" != "null" ] && author="$temp"
             fi
           fi
 
@@ -50,8 +50,9 @@ jobs:
             SATURDAY_BONUS=""
           fi
 
-          # === 发送消息（关键：加 || true 防止 curl 失败导致 exit）===
-          response=$(curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
+          # === 发送消息（关键：加 || true 防止 curl 失败）===
+          response=$(curl -s -X POST \
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
             -d '{
               "msgtype": "markdown",
@@ -60,8 +61,8 @@ jobs:
               }
             }')
 
-          # （可选）打印响应用于调试
+          # 打印响应用于调试（可选）
           echo "企微响应: $response"
 
-          # 即使发送失败，也认为工作流成功（避免 false alarm）
+          # 即使发送失败，也认为工作流成功
           exit 0
