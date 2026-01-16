@@ -25,7 +25,7 @@ jobs:
             6) CN_DAY="周六" ;;
           esac
           DATE_STR=$(date '+%m月%d日')
-          REPORT_URL="https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k"
+          REPORT_URL="https://doc.weixin.qq.com/sheet/e3_AfEACwZNAC8CN3QnB7iAmQZurJmhy?scode=AA4AkQcZAA4FpG5Io1AXQAowasAEc&tab=000001"
 
           # 发送兼容企业微信群机器人的 Markdown 消息
           curl "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
