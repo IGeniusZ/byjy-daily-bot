@@ -2,18 +2,19 @@ name: 🌙 下班打卡提醒（单休版）
 
 on:
   schedule:
-    - cron: '0 11 * * *'   # UTC 11:00 = 北京时间 19:00
+    - cron: '0 11 * * *'
   workflow_dispatch:
 
 jobs:
   off-duty:
     runs-on: ubuntu-latest
     steps:
-      - name: 🌟 发送花里胡哨下班打卡提醒
+      - name: 🌟 发送下班提醒（修复换行）
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          # === 获取中文星期 ===
+          # 获取日期和星期
+          DATE_STR=$(date '+%m月%d日')
           WEEKDAY=$(date '+%u')
           case $WEEKDAY in
             1) CN_DAY="周一" ;;
@@ -24,24 +25,41 @@ jobs:
             6) CN_DAY="周六" ;;
             7) CN_DAY="周日" ;;
           esac
-          DATE_STR=$(date '+%m月%d日')
 
-          # === 周六彩蛋 ===
+          # 周六彩蛋
           if [ "$CN_DAY" = "周六" ]; then
-            SATURDAY_BONUS="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\\n> 你今天的努力，值得双倍奶茶奖励！\\n> \\n> 💖 别忘了：周日是你的充电日，好好休息～"
+            bonus="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\n> 你今天的努力，值得双倍奶茶奖励！\n> \n> 💖 别忘了：周日是你的充电日，好好休息～"
           else
-            SATURDAY_BONUS=""
+            bonus=""
           fi
 
-          # === 构建 JSON（关键：使用 \\n 表示换行）===
+          # 构建 Markdown 内容（使用真实换行符）
+          content="🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>
+
+📌 **今日**：$DATE_STR（$CN_DAY）
+📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>
+
+💬 <font color=\"comment\">“今天也要好好休息呀～”</font>
+> —— 暖心小助手
+
+$bonus
+
+🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>
+
+[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)
+
+@all"
+
+          # 将真实换行符转换为 \\n（供 JSON 使用）
+          json_content=$(printf '%s' "$content" | sed ':a;N;$!ba;s/\n/\\n/g')
+
+          # 构建完整 JSON
+          json_body=$(printf '{"msgtype":"markdown","markdown":{"content":"%s"}}' "$json_content")
+
+          # 发送
           curl -s -X POST \
             "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
-            -d '{
-              "msgtype": "markdown",
-              "markdown": {
-                "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\\n\\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\\n\\n💬 <font color=\"comment\">“今天也要好好休息呀～”</font>\\n> —— 暖心小助手\\n\\n'$SATURDAY_BONUS'\\n\\n🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>\\n\\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\\n\\n@all"
-              }
-            }' >/dev/null || true
+            -d "$json_body" >/dev/null || true
 
           exit 0
