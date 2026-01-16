@@ -1,27 +1,78 @@
-name: 🌙 下班打卡提醒（单休版）
+name: 🌙 下班打卡提醒（单休版 · 花里胡哨增强版）
 
 on:
   schedule:
-    - cron: '0 11 * * *'
-  workflow_dispatch:
+    - cron: '0 11 * * *'   # UTC 11:00 = 北京时间 19:00
+  workflow_dispatch:        # 允许手动测试
 
 jobs:
   off-duty:
     runs-on: ubuntu-latest
     steps:
-      - name: Send Reminder
+      - name: 🌟 发送下班提醒（周一至周六）
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          d=$(date '+%m月%d日')
-          w=$(date '+%u')
-          case $w in 1) wd=周一;; 2) wd=周二;; 3) wd=周三;; 4) wd=周四;; 5) wd=周五;; 6) wd=周六;; *) wd=周日;; esac
-          if [ "$wd" = "周六" ]; then
-            bonus="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\\n> 双倍奶茶奖励！"
-          else
-            bonus=""
+          # === 1. 获取日期和星期 ===
+          DATE_STR=$(date '+%m月%d日')
+          WEEKDAY=$(date '+%u')  # 1=周一, 7=周日
+
+          # 周日不提醒（单休）
+          if [ "$WEEKDAY" = "7" ]; then
+            echo "🎉 今天是周日，休息日，不发送提醒。"
+            exit 0
           fi
-          curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
+
+          case $WEEKDAY in
+            1) CN_DAY="周一" ;;
+            2) CN_DAY="周二" ;;
+            3) CN_DAY="周三" ;;
+            4) CN_DAY="周四" ;;
+            5) CN_DAY="周五" ;;
+            6) CN_DAY="周六" ;;
+          esac
+
+          # === 2. 获取每日一句（带容错）===
+          quote="今天也要好好休息呀～"
+          author="暖心小助手"
+
+          # 尝试调用免费 API（超时 8 秒）
+          if command -v curl >/dev/null && command -v jq >/dev/null; then
+            api_resp=$(curl -s --max-time 8 "https://api.vvhan.com/api/ian" || echo '{}')
+            new_quote=$(echo "$api_resp" | jq -r '.content // empty' 2>/dev/null)
+            new_author=$(echo "$api_resp" | jq -r '.author // empty' 2>/dev/null)
+            [ -n "$new_quote" ] && [ "$new_quote" != "null" ] && quote="$new_quote"
+            [ -n "$new_author" ] && [ "$new_author" != "null" ] && author="$new_author"
+          fi
+
+          # === 3. 转义特殊字符（确保 JSON 安全）===
+          quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g; s/\\/\\\\/g')
+          author_safe=$(printf '%s' "$author" | sed 's/"/\\"/g; s/\\/\\\\/g')
+
+          # === 4. 周六专属彩蛋 ===
+          if [ "$CN_DAY" = "周六" ]; then
+            BONUS="🌈 <font color=\"warning\">✨ 周六加班辛苦啦！</font>\\n> 💪 你的努力，值得双倍奶茶+周末躺平！\\n> \\n> 💖 明天就是充电日，好好休息～"
+          else
+            BONUS=""
+          fi
+
+          # === 5. 构建 Markdown 内容（使用 \\n 换行）===
+          CONTENT="🌙 <font color=\"info\">────── ⏰ 19:00 · 下班时间到！──────</font>\\n\\n\
+📌 **今日**：$DATE_STR（$CN_DAY）\\n\
+📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\\n\\n\
+💬 <font color=\"comment\">“$quote_safe”</font>\\n\
+> —— $author_safe\\n\\n\
+$BONUS\\n\\n\
+🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>\\n\\n\
+[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\\n\\n\
+@all"
+
+          # === 6. 发送消息（强制成功）===
+          curl -s -X POST \
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
-            -d '{"msgtype":"markdown","markdown":{"content":"🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\\n\\n📌 **今日**：'$d'（'$wd'）\\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\\n\\n💬 <font color=\"comment\">“今天也要好好休息呀～”</font>\\n> —— 暖心小助手\\n\\n'$bonus'\\n\\n🎀 <font color=\"info\">快去打卡吧！</font>\\n\\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\\n\\n@all"}}' >/dev/null || true
+            -d "{\"msgtype\":\"markdown\",\"markdown\":{\"content\":\"$CONTENT\"}}" \
+            >/dev/null || true
+
+          echo "✅ 下班提醒已尝试发送（周日除外）"
           exit 0
