@@ -1,0 +1,49 @@
+name: 🌙 下班打卡提醒（单休版）
+
+on:
+  schedule:
+    - cron: '0 11 * * *'   # UTC 11:00 = 北京时间 19:00
+  workflow_dispatch:        # 支持手动测试
+
+jobs:
+  off-duty:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🌟 发送花里胡哨下班打卡提醒
+        env:
+          WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
+        run: |
+          # === 获取中文星期 ===
+          WEEKDAY=$(date '+%u')
+          case $WEEKDAY in
+            1) CN_DAY="周一" ;;
+            2) CN_DAY="周二" ;;
+            3) CN_DAY="周三" ;;
+            4) CN_DAY="周四" ;;
+            5) CN_DAY="周五" ;;
+            6) CN_DAY="周六" ;;
+            7) CN_DAY="周日" ;;
+          esac
+          DATE_STR=$(date '+%m月%d日')
+
+          # === 获取每日名言（免费 API，支持中文）===
+          quote_data=$(curl -s "https://api.vvhan.com/api/ian")
+          quote=$(echo "$quote_data" | jq -r '.content // "今天也要好好休息呀～"')
+          author=$(echo "$quote_data" | jq -r '.author // "暖心小助手"')
+
+          # === 周六专属彩蛋（单休重点！）===
+          if [ "$CN_DAY" = "周六" ]; then
+            SATURDAY_BONUS="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\n> 你今天的努力，值得双倍奶茶奖励！\n> \n> 💖 别忘了：周日是你的充电日，好好休息～"
+          else
+            SATURDAY_BONUS=""
+          fi
+
+          # === 构造超花哨 Markdown 消息 ===
+          curl "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\n\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\n\n💬 <font color=\"comment\">“'$quote'”</font>\n> —— '$author'\n\n'$SATURDAY_BONUS'\n\n🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>\n\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\n\n@all"
+              }
+            }'
