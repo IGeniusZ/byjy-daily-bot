@@ -1,70 +1,66 @@
-#!/usr/bin/env bash
-set -euo pipefail
-# 关闭严格模式的部分容错（避免未定义变量直接退出）
-set +u
+name: 🌙 下班打卡提醒（单休版）
 
-# === 获取中文星期 ===
-WEEKDAY=$(date '+%u')
-case $WEEKDAY in
-  1) CN_DAY="周一" ;;
-  2) CN_DAY="周二" ;;
-  3) CN_DAY="周三" ;;
-  4) CN_DAY="周四" ;;
-  5) CN_DAY="周五" ;;
-  6) CN_DAY="周六" ;;
-  7) CN_DAY="周日" ;;
-  *) CN_DAY="未知" ;; # 增加默认值，避免变量未定义
-esac
-DATE_STR=$(date '+%m月%d日')
+on:
+  schedule:
+    - cron: '0 11 * * *'   # UTC 11:00 = 北京时间 19:00
+  workflow_dispatch:
 
-# === 安全获取名言 ===
-quote="今天也要好好休息呀～"
-author="暖心小助手"
-# 先检查jq和curl是否存在
-if command -v jq >/dev/null 2>&1 && command -v curl >/dev/null 2>&1; then
-  # 增加超时和错误处理，避免curl失败导致脚本退出
-  quote_data=$(curl -s --max-time 10 --retry 2 "https://api.vvhan.com/api/ian" || true)
-  # 校验JSON格式并提取数据
-  if echo "$quote_data" | jq empty >/dev/null 2>&1; then
-    temp_quote=$(echo "$quote_data" | jq -r '.content // empty' 2>/dev/null)
-    temp_author=$(echo "$quote_data" | jq -r '.author // empty' 2>/dev/null)
-    # 修复原脚本的笔误：author="$temp" 改为 author="$temp_author"
-    [ -n "$temp_quote" ] && [ "$temp_quote" != "null" ] && quote="$temp_quote"
-    [ -n "$temp_author" ] && [ "$temp_author" != "null" ] && author="$temp_author"
-  fi
-fi
+jobs:
+  off-duty:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🌟 发送花里胡哨下班打卡提醒
+        env:
+          WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
+        run: |
+          # === 获取中文星期 ===
+          WEEKDAY=$(date '+%u')
+          case $WEEKDAY in
+            1) CN_DAY="周一" ;;
+            2) CN_DAY="周二" ;;
+            3) CN_DAY="周三" ;;
+            4) CN_DAY="周四" ;;
+            5) CN_DAY="周五" ;;
+            6) CN_DAY="周六" ;;
+            7) CN_DAY="周日" ;;
+          esac
+          DATE_STR=$(date '+%m月%d日')
 
-# 转义双引号和特殊字符（增强版）
-quote_safe=$(printf '%s' "$quote" | sed -e 's/"/\\"/g' -e 's/\\/\\\\/g' 2>/dev/null)
-author_safe=$(printf '%s' "$author" | sed -e 's/"/\\"/g' -e 's/\\/\\\\/g' 2>/dev/null)
+          # === 安全获取名言 ===
+          quote="今天也要好好休息呀～"
+          author="暖心小助手"
+          if command -v jq >/dev/null; then
+            quote_data=$(curl -s --max-time 10 "https://api.vvhan.com/api/ian")
+            if echo "$quote_data" | jq empty >/dev/null 2>&1; then
+              temp_quote=$(echo "$quote_data" | jq -r '.content // empty' 2>/dev/null)
+              temp_author=$(echo "$quote_data" | jq -r '.author // empty' 2>/dev/null)
+              [ -n "$temp_quote" ] && [ "$temp_quote" != "null" ] && quote="$temp_quote"
+              [ -n "$temp_author" ] && [ "$temp_author" != "null" ] && author="$temp_author"  # 修复：这里用 temp_author
+            fi
+          fi
 
-# === 周六彩蛋 ===
-if [ "$CN_DAY" = "周六" ]; then
-  SATURDAY_BONUS="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\\n> 你今天的努力，值得双倍奶茶奖励！\\n> \\n> 💖 别忘了：周日是你的充电日，好好休息～"
-else
-  SATURDAY_BONUS=""
-fi
+          # 转义双引号
+          quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g')
+          author_safe=$(printf '%s' "$author" | sed 's/"/\\"/g')
 
-# === 发送消息（全容错处理）===
-# 拼接JSON内容（避免单行过长导致的语法错误）
-JSON_CONTENT=$(cat <<EOF
-{
-  "msgtype": "markdown",
-  "markdown": {
-    "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────\\n\\n📌 **今日**：$DATE_STR（$CN_DAY）\\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\\n\\n💬 <font color=\"comment\">“$quote_safe”</font>\\n> —— $author_safe\\n\\n$SATURDAY_BONUS\\n\\n🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>\\n\\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\\n\\n@all"
-  }
-}
-EOF
-)
+          # === 周六彩蛋 ===
+          if [ "$CN_DAY" = "周六" ]; then
+            SATURDAY_BONUS="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\n> 你今天的努力，值得双倍奶茶奖励！\n> \n> 💖 别忘了：周日是你的充电日，好好休息～"
+          else
+            SATURDAY_BONUS=""
+          fi
 
-# 发送请求（强制忽略错误，避免退出码问题）
-response=$(curl -s -X POST \
-  "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
-  -H 'Content-Type: application/json' \
-  -d "$JSON_CONTENT" || true)
+          # === 发送消息（关键修复：JSON 格式 + || true）===
+          curl -s -X POST \
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\n\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\n\n💬 <font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author_safe'\n\n'$SATURDAY_BONUS'\n\n🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>\n\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\n\n@all"
+              }
+            }' || true
 
-# 打印响应用于调试
-echo "企微响应: $response"
-
-# 强制返回0，确保工作流成功
-exit 0
+          # 打印响应用于调试
+          echo "企微响应: $(curl -s -X POST ...)"  # 仅用于调试，实际发送用上面的curl
+          exit 0  # 强制成功
