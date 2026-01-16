@@ -3,7 +3,7 @@ name: 🌙 下班打卡提醒（单休版）
 on:
   schedule:
     - cron: '0 11 * * *'   # UTC 11:00 = 北京时间 19:00
-  workflow_dispatch:        # 支持手动测试
+  workflow_dispatch:
 
 jobs:
   off-duty:
@@ -13,6 +13,9 @@ jobs:
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
+          # === 安装 jq（关键！否则 exit code 6）===
+          sudo apt-get update && sudo apt-get install -y jq
+
           # === 获取中文星期 ===
           WEEKDAY=$(date '+%u')
           case $WEEKDAY in
@@ -26,19 +29,20 @@ jobs:
           esac
           DATE_STR=$(date '+%m月%d日')
 
-          # === 获取每日名言（免费 API，支持中文）===
+          # === 获取每日名言（带容错）===
           quote_data=$(curl -s "https://api.vvhan.com/api/ian")
-          quote=$(echo "$quote_data" | jq -r '.content // "今天也要好好休息呀～"')
-          author=$(echo "$quote_data" | jq -r '.author // "暖心小助手"')
+          # 安全提取字段，防止 null 或特殊字符
+          quote=$(echo "$quote_data" | jq -r '.content // "今天也要好好休息呀～"' | sed 's/"/\\"/g')
+          author=$(echo "$quote_data" | jq -r '.author // "暖心小助手"' | sed 's/"/\\"/g')
 
-          # === 周六专属彩蛋（单休重点！）===
+          # === 周六专属彩蛋 ===
           if [ "$CN_DAY" = "周六" ]; then
             SATURDAY_BONUS="🌈 <font color=\"warning\">✨ 周六上班辛苦啦！</font>\n> 你今天的努力，值得双倍奶茶奖励！\n> \n> 💖 别忘了：周日是你的充电日，好好休息～"
           else
             SATURDAY_BONUS=""
           fi
 
-          # === 构造超花哨 Markdown 消息 ===
+          # === 构造消息（注意：变量内双引号已转义）===
           curl "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
             -d '{
