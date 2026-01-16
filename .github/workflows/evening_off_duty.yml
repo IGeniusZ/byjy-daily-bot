@@ -1,4 +1,4 @@
-name: 🌙 下班打卡提醒（单休版 · 花里胡哨增强版）
+name: 🌙 下班打卡提醒（单休版·花里胡哨增强版）
 
 on:
   schedule:
@@ -36,7 +36,6 @@ jobs:
           quote="今天也要好好休息呀～"
           author="暖心小助手"
 
-          # 尝试调用免费 API（超时 8 秒）
           if command -v curl >/dev/null && command -v jq >/dev/null; then
             api_resp=$(curl -s --max-time 8 "https://api.vvhan.com/api/ian" || echo '{}')
             new_quote=$(echo "$api_resp" | jq -r '.content // empty' 2>/dev/null)
@@ -45,7 +44,7 @@ jobs:
             [ -n "$new_author" ] && [ "$new_author" != "null" ] && author="$new_author"
           fi
 
-          # === 3. 转义特殊字符（确保 JSON 安全）===
+          # === 3. 转义特殊字符 ===
           quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g; s/\\/\\\\/g')
           author_safe=$(printf '%s' "$author" | sed 's/"/\\"/g; s/\\/\\\\/g')
 
@@ -56,7 +55,7 @@ jobs:
             BONUS=""
           fi
 
-          # === 5. 构建 Markdown 内容（使用 \\n 换行）===
+          # === 5. 构建 Markdown 内容 ===
           CONTENT="🌙 <font color=\"info\">────── ⏰ 19:00 · 下班时间到！──────</font>\\n\\n\
 📌 **今日**：$DATE_STR（$CN_DAY）\\n\
 📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\\n\\n\
@@ -67,7 +66,7 @@ $BONUS\\n\\n\
 [🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\\n\\n\
 @all"
 
-          # === 6. 发送消息（强制成功）===
+          # === 6. 发送消息 ===
           curl -s -X POST \
             "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
