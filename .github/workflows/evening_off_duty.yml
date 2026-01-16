@@ -10,7 +10,7 @@ jobs:
   off-duty:
     runs-on: ubuntu-latest
     steps:
-      - name: 🌟 发送下班提醒（内置200条名言）
+      - name: 🌟 发送下班提醒
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
