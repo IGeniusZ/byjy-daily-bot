@@ -1,0 +1,21 @@
+name: Daily Report Reminder
+
+on:
+  schedule:
+    - cron: '30 10 * * *'   # UTC 10:30 = 北京 18:30
+  workflow_dispatch:
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Markdown Reminder with @all
+        run: |
+          curl 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${{ secrets.WECHAT_BOT_KEY }}' \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "### 📅 日报紧急提醒\n> 请务必在 **19:00 前** 提交今日工作日报！\n\n@all"
+              }
+            }'
