@@ -1,20 +1,21 @@
-name: 🌙 下班打卡提醒（单休版）
+name: 🌙 下班打卡提醒（单休 · 名言版）
 
 on:
   schedule:
     # UTC 11:00 = 北京时间 19:00，仅周一到周六
     - cron: '0 11 * * 1-6'
-  workflow_dispatch:  # 允许手动测试
+  workflow_dispatch:
 
 jobs:
-  off-duty-reminder:
+  off-duty:
     runs-on: ubuntu-latest
     steps:
-      - name: 🌟 发送下班打卡提醒
+      - name: 🌟 发送带名言的下班提醒
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          # 获取中文星期和日期
+          # === 获取日期和星期 ===
+          DATE_STR=$(date '+%m月%d日')
           WEEKDAY=$(date '+%u')
           case $WEEKDAY in
             1) CN_DAY="周一" ;;
@@ -24,19 +25,42 @@ jobs:
             5) CN_DAY="周五" ;;
             6) CN_DAY="周六" ;;
           esac
-          DATE_STR=$(date '+%m月%d日')
 
-          # 企业微信官方打卡链接（通用入口）
-          PUNCH_URL="https://work.weixin.qq.com/wework_admin/portal/punch_in?from=notify"
+          # === 获取名言（免费 API + 容错）===
+          quote="今天也要好好休息呀～"
+          author="暖心小助手"
 
-          # 发送 Markdown 消息（换行用 \n，单引号内直接写）
+          # 尝试调用免费 API（超时 5 秒）
+          if command -v curl >/dev/null; then
+            # 使用纯文本接口，避免 JSON 解析依赖 jq
+            raw_text=$(curl -s --max-time 5 "https://www.770a.cn/yiyan/?format=text" || echo "")
+            if [ -n "$raw_text" ] && [ "${#raw_text}" -le 100 ]; then
+              # 格式示例："生活不止眼前的苟且。——高晓松"
+              if echo "$raw_text" | grep -q "——"; then
+                quote=$(echo "$raw_text" | cut -d '——' -f 1 | xargs)
+                author=$(echo "$raw_text" | cut -d '——' -f 2 | xargs)
+              else
+                quote="$raw_text"
+                author="佚名"
+              fi
+            fi
+          fi
+
+          # === 转义双引号（防止 JSON 崩溃）===
+          quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g')
+          author_safe=$(printf '%s' "$author" | sed 's/"/\\"/g')
+
+          # === 企业微信官方打卡地址（2026年有效）===
+          PUNCH_URL="https://work.weixin.qq.com/wework_admin/portal/punch_in"
+
+          # === 发送消息（换行用 \n，单引号内直接写）===
           curl -s -X POST \
             "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
             -d '{
               "msgtype": "markdown",
               "markdown": {
-                "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\n\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\n📍 **任务**：<font color=\"warning\">✅ 立即打卡 + 提交日报</font>\n\n💬 <font color=\"comment\">“今天也要好好休息呀～”</font>\n> —— 暖心小助手\n\n[🚪 立即打卡]('$PUNCH_URL')\n\n@all"
+                "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\n\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\n\n💬 <font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author_safe'\n\n[🚪 立即打卡]('$PUNCH_URL')\n\n@all"
               }
             }' >/dev/null || true
 
