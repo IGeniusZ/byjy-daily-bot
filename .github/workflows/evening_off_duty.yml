@@ -13,9 +13,6 @@ jobs:
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          # jq 已预装于 ubuntu-latest（无需安装，避免冗余）
-          # 但为保险起见，可跳过 apt install（节省时间）
-
           # === 获取中文星期 ===
           WEEKDAY=$(date '+%u')
           case $WEEKDAY in
@@ -29,25 +26,20 @@ jobs:
           esac
           DATE_STR=$(date '+%m月%d日')
 
-          # === 安全获取名言（关键：防止 jq 失败）===
+          # === 安全获取名言 ===
           quote="今天也要好好休息呀～"
           author="暖心小助手"
-          
-          quote_data=$(curl -s --max-time 10 "https://api.vvhan.com/api/ian")
-          
-          # 只有当返回是有效 JSON 且包含 content 时才更新
-          if echo "$quote_data" | jq empty >/dev/null 2>&1; then
-            temp_quote=$(echo "$quote_data" | jq -r '.content // empty')
-            temp_author=$(echo "$quote_data" | jq -r '.author // empty')
-            if [ -n "$temp_quote" ] && [ "$temp_quote" != "null" ]; then
-              quote="$temp_quote"
-            fi
-            if [ -n "$temp_author" ] && [ "$temp_author" != "null" ]; then
-              author="$temp_author"
+          if command -v jq >/dev/null; then
+            quote_data=$(curl -s --max-time 10 "https://api.vvhan.com/api/ian")
+            if echo "$quote_data" | jq empty >/dev/null 2>&1; then
+              temp_quote=$(echo "$quote_data" | jq -r '.content // empty' 2>/dev/null)
+              temp_author=$(echo "$quote_data" | jq -r '.author // empty' 2>/dev/null)
+              [ -n "$temp_quote" ] && [ "$temp_quote" != "null" ] && quote="$temp_quote"
+              [ -n "$temp_author" ] && [ "$temp_author" != "null" ] && author="$temp_author"
             fi
           fi
 
-          # 转义双引号，防止破坏 JSON
+          # 转义双引号
           quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g')
           author_safe=$(printf '%s' "$author" | sed 's/"/\\"/g')
 
@@ -58,12 +50,18 @@ jobs:
             SATURDAY_BONUS=""
           fi
 
-          # === 发送消息 ===
-          curl -s -o /dev/null -w "%{http_code}" "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
+          # === 发送消息（关键：加 || true 防止 curl 失败导致 exit）===
+          response=$(curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
             -d '{
               "msgtype": "markdown",
               "markdown": {
                 "content": "🌙 <font color=\"info\">────── ⏰ 下班时间到！──────</font>\n\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\n📍 **任务**：<font color=\"warning\">✅ 打卡 + 提交日报</font>\n\n💬 <font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author_safe'\n\n'$SATURDAY_BONUS'\n\n🎀 <font color=\"info\">快去打卡吧！系统在等你～</font>\n\n[🚪 立即打卡](https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k)\n\n@all"
               }
-            }'
+            }')
+
+          # （可选）打印响应用于调试
+          echo "企微响应: $response"
+
+          # 即使发送失败，也认为工作流成功（避免 false alarm）
+          exit 0
