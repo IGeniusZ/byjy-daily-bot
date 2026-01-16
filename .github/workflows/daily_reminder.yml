@@ -2,8 +2,9 @@ name: Daily Report Reminder (Mon-Sat)
 
 on:
   schedule:
-    - cron: '30 10 * * 1-6'   # 北京时间 18:30，周一到周六
-  workflow_dispatch:
+    # UTC 10:30 = 北京时间 18:30，仅周一到周六（1=周一, 6=周六）
+    - cron: '30 10 * * 1-6'
+  workflow_dispatch:  # 允许手动测试
 
 jobs:
   send-reminder:
@@ -13,6 +14,7 @@ jobs:
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
+          # 获取中文星期
           WEEKDAY=$(date '+%u')
           case $WEEKDAY in
             1) CN_DAY="周一" ;;
@@ -23,13 +25,14 @@ jobs:
             6) CN_DAY="周六" ;;
           esac
           DATE_STR=$(date '+%m月%d日')
-          URL="https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k"
+          REPORT_URL="https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k"
 
+          # 发送兼容企业微信群机器人的 Markdown 消息
           curl "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
             -d '{
               "msgtype": "markdown",
               "markdown": {
-                "content": "#### 📅 <font color=\"info\">日报提交提醒</font> \n\n> **时间**：'$DATE_STR'（'$CN_DAY'）· <font color=\"warning\">19:00 截止</font>\n> **要求**：请完整填写今日工作内容\n\n<a href=\"'$URL'\">✅ 立即填写日报</a>\n\n@all"
+                "content": "#### 📅 <font color=\"info\">日报提交提醒</font>\n\n> **时间**：'$DATE_STR'（'$CN_DAY'）· <font color=\"warning\">19:00 截止</font>\n> **要求**：请完整填写今日工作内容\n\n[✅ 立即填写日报]('$REPORT_URL')\n\n@all"
               }
             }'
