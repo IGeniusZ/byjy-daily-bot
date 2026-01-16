@@ -2,18 +2,18 @@ name: Daily Report Reminder (Mon-Sat)
 
 on:
   schedule:
-    # UTC 10:30 = 北京时间 18:30，仅周一到周六（1=周一, 6=周六）
-    - cron: '30 10 * * 1-6'
-  workflow_dispatch:  # 允许手动测试
+    - cron: '30 10 * * 1-6'   # 北京时间 18:30，周一到周六
+  workflow_dispatch:
 
 jobs:
   send-reminder:
     runs-on: ubuntu-latest
     steps:
-      - name: Generate Chinese Weekday and Date
-        id: date_info
+      - name: Send Beautiful Markdown Reminder
+        env:
+          WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          WEEKDAY=$(date '+%u')  # 1=周一, 7=周日
+          WEEKDAY=$(date '+%u')
           case $WEEKDAY in
             1) CN_DAY="周一" ;;
             2) CN_DAY="周二" ;;
@@ -21,58 +21,15 @@ jobs:
             4) CN_DAY="周四" ;;
             5) CN_DAY="周五" ;;
             6) CN_DAY="周六" ;;
-            *) CN_DAY="周日" ;;
           esac
           DATE_STR=$(date '+%m月%d日')
-          echo "cn_day=$CN_DAY" >> $GITHUB_ENV
-          echo "date_str=$DATE_STR" >> $GITHUB_ENV
+          URL="https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k"
 
-      - name: Send Template Card to WeCom
-        env:
-          WECHAT_KEY: ${{ secrets.WECHAT_BOT_YUQUE }}
-        run: |
-          # 语雀日报地址（已解码，确保可点击）
-          REPORT_URL="https://byjyedu.yuque.com/org-wiki-byjyedu-bxo6fa/bmqx33/gz2ixgatwha0u07k"
-
-          # 构造 JSON（注意转义双引号）
           curl "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
             -d '{
-              "msgtype": "template_card",
-              "template_card": {
-                "card_type": "text_notice",
-                "source": {
-                  "icon_url": "https://gw.alipayobjects.com/zos/bmw-prod/501b3e5b-8924-45cd-95ee-4c7470570204.svg",
-                  "desc": "技术中心 · 日报填写"
-                },
-                "main_title": {
-                  "title": "⏰ 日报提交提醒",
-                  "desc": "'"$DATE_STR"' '"$CN_DAY"' · 19:00 截止"
-                },
-                "quote_area": {
-                  "type": 1,
-                  "quote_text": "请完整填写：今日工作进展。"
-                },
-                "emphasis_content": {
-                  "title": "立即提交",
-                  "desc": "点击下方按钮快速进入"
-                },
-                "horizontal_content_list": [
-                  {
-                    "keyname": "截止时间",
-                    "value": "19:00"
-                  },
-                  {
-                    "keyname": "提醒对象",
-                    "value": "@all"
-                  }
-                ],
-                "jump_list": [
-                  {
-                    "type": 1,
-                    "url": "'"$REPORT_URL'",
-                    "title": "📝 打开日报"
-                  }
-                ]
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "#### 📅 <font color=\"info\">日报提交提醒</font> \n\n> **时间**：'$DATE_STR'（'$CN_DAY'）· <font color=\"warning\">19:00 截止</font>\n> **要求**：请完整填写今日工作内容\n\n<a href=\"'$URL'\">✅ 立即填写日报</a>\n\n@all"
               }
             }'
