@@ -1,0 +1,40 @@
+name: 📌 月末文件待签 · 请领导签字
+
+on:
+  schedule:
+    - cron: '30 2 * * 6'   # UTC 2:30 = 北京时间 10:30，每月最后一天
+  workflow_dispatch:
+
+jobs:
+  monthly-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🌸 发送专业月末提醒
+        env:
+          WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
+        run: |
+          # === 判断是否为当月最后一天 ===
+          CURRENT_DAY=$(date '+%d')
+          LAST_DAY=$(date -d "next month -1 day" '+%d')
+          
+          if [ "$CURRENT_DAY" != "$LAST_DAY" ]; then
+            echo "⚠️ 今天不是当月最后一天，跳过发送"
+            exit 0
+          fi
+
+          DATE_STR=$(date '+%m月%d日')
+          CN_DAY=$(date '+%a')
+
+          # === 专业提醒文案（聚焦核心事项）===
+          REMINDER_CONTENT="📄 **加班表 & 绩效考核表待签**\n\n✅ **请完成以下事项**（打印后请领导签字）：\n\n- 📌 **加班表**：\n  • 打印纸质版\n  • 请领导签字确认\n  • 交至行政部（3楼A区）\n\n- 📌 **月度绩效考核表**：\n  • 打印双份（一式两份）\n  • 请领导签字确认\n  • 交至人力资源部（5楼B区）\n\n⏰ **截止时间**：今日12:00前\n\n✨ **温馨提示**：\n• 请提前打印，避免临下班排队\n• 签字后请立即提交，确保流程顺畅"
+
+          # === 发送优雅月末提醒 ===
+          curl -s -X POST \
+            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
+            -H 'Content-Type: application/json' \
+            -d '{
+              "msgtype": "markdown",
+              "markdown": {
+                "content": "🌸 **月末文件待签 · 请领导签字** 🌸\n\n📅 **今日**：'$DATE_STR'（'$CN_DAY'）\n⏰ **截止**：<font color=\"warning\">今日12:00前</font>\n\n'${REMINDER_CONTENT//\"/\\\"}'\n\n@all"
+              }
+            }' >/dev/null || true
