@@ -2,7 +2,7 @@ name: 📝 日报提醒（单休 · 炫酷趣味版）
 
 on:
   schedule:
-    - cron: '0 9 * * 1-6'   # UTC 9:30 = 北京时间 17:30，周一至周六
+    - cron: '0 9 * * 1-6'   # UTC 9:00 = 北京时间 17:00，周一至周六
   workflow_dispatch:
 
 jobs:
@@ -207,14 +207,17 @@ jobs:
           author="日报小精灵"
           quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g')
 
-          # === 发送炫酷 Markdown 消息 ===
+          # === 日报填写链接（已转义特殊字符）===
+          REPORT_URL="https://doc.weixin.qq.com/sheet/e3_AfEACwZNAC8CN3QnB7iAmQZurJmhy?scode=AA4AkQcZAA4HSSlGTJAfEACwZNAC8&tab=000001&clickStart=1768789395939"
+
+          # === 发送炫酷 Markdown 消息（含可点击链接）===
           curl -s -X POST \
             "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
             -d '{
               "msgtype": "markdown",
               "markdown": {
-                "content": "📝 <font color=\"info\">────── ⏰ 日报时间到！──────</font>\n\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\n🕒 **截止**：<font color=\"warning\">19:00 前提交</font>\n\n💬 <font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author'\n\n✨ <font color=\"info\">快动笔吧！你的日报，值得被认真对待～</font>\n\n@all"
+                "content": "📝 <font color=\"info\">────── ⏰ 日报时间到！──────</font>\n\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\n🕒 **截止**：<font color=\"warning\">19:00 前提交</font>\n\n💬 <font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author'\n\n🔗 [✅ 立即填写日报]('$REPORT_URL')\n\n✨ <font color=\"info\">快动笔吧！你的日报，值得被认真对待～</font>\n\n@all"
               }
             }' >/dev/null || true
 
