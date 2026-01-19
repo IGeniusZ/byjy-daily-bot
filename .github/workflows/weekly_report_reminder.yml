@@ -1,4 +1,4 @@
-name: 🌸 周报时光 · 一周复盘时刻
+name: 🌈 周报时光 · 一周复盘时刻
 
 on:
   schedule:
@@ -9,7 +9,7 @@ jobs:
   weekly-report:
     runs-on: ubuntu-latest
     steps:
-      - name: 🌟 发送优雅周报提醒
+      - name: 🌟 发送花哨周报提醒
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
@@ -181,6 +181,6 @@ jobs:
             -d '{
               "msgtype": "markdown",
               "markdown": {
-                "content": "🌸 **周报时光 · 一周复盘时刻** 🌸\n\n📅 **今日**：'$DATE_STR'（'$CN_DAY'）\n⏰ **截止**：<font color=\"warning\">今日内完成</font>\n\n💬 <font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author'\n\n📄 **记得上交周报** ✨\n\n💫 **这一周的努力，值得被郑重记录。**\n\n@all"
+                "content": "✨✨✨✨✨✨✨✨✨✨✨✨✨\n\n🌸 **周报时光 · 一周复盘时刻** 🌸\n\n✨✨✨✨✨✨✨✨✨✨✨✨✨\n\n📅 **今日**：'$DATE_STR'（'$CN_DAY'）\n⏰ **建议提交**：<font color=\"warning\">今日内完成</font>\n\n💬 **本周金句**：\n<font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author'\n\n📄 **记得上交周报** ✨\n\n💫 **这一周的努力，值得被郑重记录。**\n\n✨✨✨✨✨✨✨✨✨✨✨✨✨\n\n@all"
               }
             }' >/dev/null || true
