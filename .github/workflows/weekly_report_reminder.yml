@@ -9,17 +9,15 @@ jobs:
   weekly-report:
     runs-on: ubuntu-latest
     steps:
-      - name: 🌟 发送名言版周报提醒
+      - name: 🌟 发送名言版周报提醒（PDF 版 · 无链接）
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
-          # 可选：填写你的周报链接（如无，可删除下方 REPORT_URL 行及 Markdown 中的链接）
-          REPORT_URL: "https://doc.weixin.qq.com/sheet/e3_AfEACwZNAC8CN3QnB7iAmQZurJmhy?scode=AA4AkQcZAA4HSSlGTJAfEACwZNAC8&tab=000001"
         run: |
-          # === 获取日期和星期 ===
+          # === 获取日期 ===
           DATE_STR=$(date '+%m月%d日')
           CN_DAY="周六"
 
-          # === 200 条名言/哲思/职场金句（专为周报定制）===
+          # === 200 条安全文案（已避免引号冲突）===
           WEEKLY_QUOTES=(
             "复盘不是为了自责，而是为了下次飞得更高。"
             "一周的终点，是下一段征程的起点。"
@@ -72,7 +70,7 @@ jobs:
             "你这一周，闪闪发光。"
             "别等别人问，主动亮出成果。"
             "周报是职场人的作品集。"
-            "复盘不是回头看，是为向前跳。"
+            "复盘不是检讨，是进化。"
             "今日不写，明日编造。"
             "你的周报，正在被宇宙存档。"
             "写周报，是专业主义的体现。"
@@ -92,7 +90,7 @@ jobs:
             "别等周一抓瞎，周六优雅收工。"
             "你的思考，正在改变团队。"
             "周报写得好，bug 绕道走。"
-            "复盘不是检讨，是进化。"
+            "复盘不是浪费时间，是节省时间。"
             "这一周的故事，请用文字珍藏。"
             "别让成果淹没在工单里。"
             "周报是职场人的第二简历。"
@@ -112,12 +110,11 @@ jobs:
             "周报是职场人的导航仪。"
             "写周报，是高手的仪式感。"
             "复盘，是为了更准地发力。"
-            "这一周的你，值得被铭记。"
+            "这一周的高光，请用文字封存。"
             "别等站会尴尬，提前准备好。"
             "周报是团队知识的沉淀。"
             "你的思考，正在创造价值。"
             "周报写完，周末才踏实。"
-            "复盘不是浪费时间，是节省时间。"
             "别让辛苦变成‘好像做了什么’。"
             "周报是打工人对抗混沌的秩序。"
             "写周报的人，从不被动。"
@@ -129,19 +126,7 @@ jobs:
             "周报是职场信用的基石。"
             "写周报，是对自己最大的善意。"
             "复盘，是为了跳出重复。"
-            "这一周的高光，请用文字封存。"
-            "别让努力只感动自己。"
-            "周报是给未来的自己留证据。"
-            "你的周报，正在被悄悄关注。"
-            "写周报的人，永远有话说。"
-            "复盘不是结束，是重启。"
-            "今日不写，明日靠猜。"
-            "你的思考，比加班更值钱。"
-            "周报是职场人的能量条。"
-            "别让成果散落在 Slack 里。"
-            "周报写得好，信任自然来。"
-            "复盘，是为了更聪明地忙。"
-            "这一周的故事，由你执笔。"
+            "这一周的你，值得被铭记。"
             "别等老板问，主动亮剑。"
             "周报是团队协作的桥梁。"
             "你的努力，需要被系统记录。"
@@ -179,7 +164,7 @@ jobs:
             "你的努力，不该被遗忘。"
             "复盘一次，少走冤枉路。"
             "周报不是形式，是力量。"
-            "今日不写，明日编造。"
+            "今日不写，明日靠猜。"
             "你的周报，正在改变叙事。"
             "别让成果沉没在会议中。"
             "周报是打工人对抗熵增的武器。"
@@ -192,23 +177,35 @@ jobs:
           RANDOM_INDEX=$((RANDOM % ${#WEEKLY_QUOTES[@]}))
           quote="${WEEKLY_QUOTES[$RANDOM_INDEX]}"
           author="周报哲人"
-          quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g')
 
-          # 构建消息内容
-          content="📊 <font color=\"info\">────── 🌈 周报时光 · 复盘时刻 ──────</font>\n\n📌 **今日**：$DATE_STR（$CN_DAY）\n⏰ **建议提交**：<font color=\"warning\">今日内完成</font>\n\n💬 <font color=\"comment\">“$quote_safe”</font>\n> —— $author"
+          # 构建纯文本内容（不含 HTML 标签，但保留 emoji 和格式）
+          # 注意：企业微信 markdown 支持 <font color=...>，但必须确保 JSON 合法
+          content_raw="📊 ────── 🌈 周报时光 · 复盘时刻 ──────
 
-          # 如果设置了 REPORT_URL，则添加链接
-          if [ -n "$REPORT_URL" ]; then
-            content="$content\n\n🔗 [✅ 立即填写周报]($REPORT_URL)"
-          fi
+📌 **今日**：${DATE_STR}（${CN_DAY}）
+⏰ **建议提交**：<font color=\"warning\">今日内完成</font>
 
-          content="$content\n\n✨ <font color=\"info\">这一周的努力，值得被郑重记录。</font>\n\n@all"
+💬 <font color=\"comment\">“${quote}”</font>
+> —— ${author}
 
-          # 发送消息
+✨ <font color=\"info\">这一周的努力，值得被郑重记录。</font>
+
+@all"
+
+          # 使用 jq 安全地构建 JSON（自动处理所有转义）
+          payload_json=$(jq -n \
+            --arg key "$WECHAT_KEY" \
+            --arg content "$content_raw" \
+            '{
+              msgtype: "markdown",
+              markdown: { content: $content }
+            }')
+
+          # 发送请求
           curl -s -X POST \
             "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
-            -d "{\"msgtype\":\"markdown\",\"markdown\":{\"content\":\"$content\"}}" \
+            -d "$payload_json" \
             >/dev/null || true
 
           exit 0
