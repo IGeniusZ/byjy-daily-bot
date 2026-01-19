@@ -1,4 +1,4 @@
-name: 📊 周报提醒（单休 · PDF专属版）
+name: 🌈 周报时光 · PDF专属花哨版
 
 on:
   schedule:
@@ -9,15 +9,13 @@ jobs:
   weekly-report:
     runs-on: ubuntu-latest
     steps:
-      - name: 🌈 发送PDF周报提醒
+      - name: 🌟 发送花哨周报提醒
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          # === 获取日期 ===
           DATE_STR=$(date '+%m月%d日')
           CN_DAY="周六"
 
-          # === 200条周报专属文案（PDF场景优化）===
           WEEKLY_QUOTES=(
             "一周的终点，是下一段征程的起点。"
             "你的周报，不是任务，而是成长的年轮。"
@@ -172,19 +170,17 @@ jobs:
             "这一周的你，光芒万丈✨"
           )
 
-          # 随机选一条
           idx=$((RANDOM % ${#WEEKLY_QUOTES[@]}))
           quote="${WEEKLY_QUOTES[$idx]}"
           author="周报哲人"
           quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g')
 
-          # === 发送炫酷周报提醒（PDF专属版）===
           curl -s -X POST \
             "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
             -H 'Content-Type: application/json' \
             -d '{
               "msgtype": "markdown",
               "markdown": {
-                "content": "📊 <font color=\"info\">────── 🌈 周报时光 · 周报填写提醒 ──────</font>\n\n📌 **今日**：'$DATE_STR'（'$CN_DAY'）\n⏰ **建议提交**：<font color=\"warning\">今日内完成</font>\n\n💬 <font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author'\n\n📄 **记得上交周报PDF** ✨\n\n✨ <font color=\"info\">这一周的努力，值得被郑重记录。</font>\n\n@all"
+                "content": "✨✨✨✨✨✨✨✨✨✨✨✨✨✨\n\n🌈 **周报时光 · PDF专属花哨版** 🌈\n\n✨✨✨✨✨✨✨✨✨✨✨✨✨✨\n\n📅 **今日**：'$DATE_STR'（'$CN_DAY'）\n⏰ **截止**：<font color=\"warning\">今日内完成</font>\n\n💬 **本周金句**：\n<font color=\"comment\">“'$quote_safe'”</font>\n> —— '$author'\n\n📄 **记得上交周报PDF** ✨\n\n💫 **这一周的努力，值得被郑重记录。**\n\n✨✨✨✨✨✨✨✨✨✨✨✨✨✨\n\n@all"
               }
             }' >/dev/null || true
