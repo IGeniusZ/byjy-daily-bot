@@ -13,11 +13,8 @@ jobs:
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          # === 获取日期 ===
           DATE_STR=$(date '+%m月%d日')
           CN_DAY="周六"
-
-          # === 200 条安全文案（已避免引号冲突）===
           WEEKLY_QUOTES=(
             "复盘不是为了自责，而是为了下次飞得更高。"
             "一周的终点，是下一段征程的起点。"
@@ -172,40 +169,16 @@ jobs:
             "复盘，是为了更优雅地赢。"
             "这一周的你，光芒万丈✨"
           )
-
-          # 随机选一条
-          RANDOM_INDEX=$((RANDOM % ${#WEEKLY_QUOTES[@]}))
-          quote="${WEEKLY_QUOTES[$RANDOM_INDEX]}"
+          idx=$((RANDOM % ${#WEEKLY_QUOTES[@]}))
+          quote="${WEEKLY_QUOTES[$idx]}"
           author="周报哲人"
-
-          # 构建纯文本内容（不含 HTML 标签，但保留 emoji 和格式）
-          # 注意：企业微信 markdown 支持 <font color=...>，但必须确保 JSON 合法
-          content_raw="📊 ────── 🌈 周报时光 · 复盘时刻 ──────
-
-📌 **今日**：${DATE_STR}（${CN_DAY}）
-⏰ **建议提交**：<font color=\"warning\">今日内完成</font>
-
-💬 <font color=\"comment\">“${quote}”</font>
-> —— ${author}
-
-✨ <font color=\"info\">这一周的努力，值得被郑重记录。</font>
-
-@all"
-
-          # 使用 jq 安全地构建 JSON（自动处理所有转义）
-          payload_json=$(jq -n \
-            --arg key "$WECHAT_KEY" \
-            --arg content "$content_raw" \
-            '{
-              msgtype: "markdown",
-              markdown: { content: $content }
-            }')
-
-          # 发送请求
-          curl -s -X POST \
-            "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=$WECHAT_KEY" \
-            -H 'Content-Type: application/json' \
-            -d "$payload_json" \
-            >/dev/null || true
-
-          exit 0
+          
+          # 构建内容（注意：企业微信 markdown 支持 <font>，但需确保 JSON 合法）
+          content="📊 ────── 🌈 周报时光 · 复盘时刻 ──────\n\n📌 **今日**：${DATE_STR}（${CN_DAY}）\n⏰ **建议提交**：<font color=\"warning\">今日内完成</font>\n\n💬 <font color=\"comment\">“${quote}”</font>\n> —— ${author}\n\n✨ <font color=\"info\">这一周的努力，值得被郑重记录。</font>\n\n@all"
+          
+          # 使用 jq 安全生成 JSON
+          payload=$(jq -n --arg c "$content" '{"msgtype":"markdown","markdown":{"content":$c}}')
+          
+          curl -s -X POST "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${WECHAT_KEY}" \
+               -H 'Content-Type: application/json' \
+               -d "$payload" >/dev/null || true
