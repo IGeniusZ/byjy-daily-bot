@@ -13,11 +13,11 @@ jobs:
         env:
           WECHAT_KEY: ${{ secrets.WECHAT_BOT_KEY }}
         run: |
-          # === 获取日期（周六）===
+          # === 获取日期 ===
           DATE_STR=$(date '+%m月%d日')
           CN_DAY="周六"
 
-          # === 200 条全新周报专属名言（聚焦复盘、成长、沉淀）===
+          # === 200 条周报专属文案（已去重、无“日报”字眼）===
           WEEKLY_QUOTES=(
             "一周的终点，是下一段征程的起点。"
             "你的周报，不是任务，而是成长的年轮。"
@@ -124,7 +124,7 @@ jobs:
             "别让灵感在梦里溜走。"
             "周报是职场信用的基石。"
             "写周报，是对自己最大的善意。"
-            "复盘，是为了跳出重复。"
+            "复盘，是为了跳过重复。"
             "这一周的你，值得被铭记。"
             "别等老板问，主动亮剑。"
             "周报是团队协作的桥梁。"
@@ -203,16 +203,14 @@ jobs:
           quote="${WEEKLY_QUOTES[$idx]}"
           author="周报哲人"
 
-          # 构建 Markdown 内容（无链接，仅提醒）
+          # 构建内容（安全拼接）
           content="📊 <font color=\"info\">────── 🌈 周报时光 · 复盘时刻 ──────</font>\n\n📌 **今日**：${DATE_STR}（${CN_DAY}）\n⏰ **建议提交**：<font color=\"warning\">今日内完成</font>\n\n💬 <font color=\"comment\">“${quote}”</font>\n> —— ${author}\n\n✨ <font color=\"info\">这一周的努力，值得被郑重记录。</font>\n\n@all"
 
-          # 使用 jq 安全生成合法 JSON
+          # 使用 jq 安全生成 JSON（这是关键！）
           payload=$(jq -n --arg c "$content" '{"msgtype":"markdown","markdown":{"content":$c}}')
 
-          # 发送企业微信消息
+          # 发送请求
           curl -s -X POST \
             "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=${WECHAT_KEY}" \
             -H 'Content-Type: application/json' \
             -d "$payload" >/dev/null || true
-
-          exit 0
