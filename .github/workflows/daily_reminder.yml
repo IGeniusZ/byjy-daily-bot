@@ -208,7 +208,7 @@ jobs:
           quote_safe=$(printf '%s' "$quote" | sed 's/"/\\"/g')
 
           # === 日报填写链接（已转义特殊字符）===
-          REPORT_URL="https://doc.weixin.qq.com/sheet/e3_AfEACwZNAC8CN3QnB7iAmQZurJmhy?scode=AA4AkQcZAA4HSSlGTJAfEACwZNAC8&tab=000001&clickStart=1768789395939"
+          REPORT_URL="https://doc.weixin.qq.com/journal/create?docid=c2_AA4AkQcZAA4AZkAQgaIALoCNlqm1N8Lpj_fork"
 
           # === 发送炫酷 Markdown 消息（含可点击链接）===
           curl -s -X POST \
